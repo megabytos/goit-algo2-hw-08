@@ -1,1 +1,3 @@
-# goit-algo2-hw-08
+# Design and Analysis of Algorithms HW8 - Rate Limiting algorithms
+* Sliding windows
+* Throttling
