@@ -8,26 +8,23 @@ class ThrottlingRateLimiter:
         self.min_interval = min_interval
         self.last_message_time: Dict[str, float] = {}
 
+    def _get_time_since_last_message(self, user_id: str) -> float:
+        last_time = self.last_message_time.get(user_id)
+        if last_time is None:
+            return self.min_interval
+        return time.monotonic() - last_time
+
     def can_send_message(self, user_id: str) -> bool:
-        current_time = time.time()
-        if user_id not in self.last_message_time:
-            return True
-        last_time = self.last_message_time.get(user_id, None)
-        return last_time is None or current_time - last_time >= self.min_interval
+        return self._get_time_since_last_message(user_id) >= self.min_interval
 
     def record_message(self, user_id: str) -> bool:
         if self.can_send_message(user_id):
-            self.last_message_time[user_id] = time.time()
+            self.last_message_time[user_id] = time.monotonic()
             return True
         return False
 
     def time_until_next_allowed(self, user_id: str) -> float:
-        current_time = time.time()
-        last_time = self.last_message_time.get(user_id, None)
-        if last_time is None:
-            return 0.0
-        remaining_time = self.min_interval - (current_time - last_time)
-        return max(0.0, remaining_time)
+        return max(0.0, self.min_interval - self._get_time_since_last_message(user_id))
 
 
 def test_throttling_limiter():

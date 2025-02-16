@@ -16,31 +16,28 @@ class SlidingWindowRateLimiter:
             while history and history[0] <= current_time - self.window_size:
                 history.popleft()
             if not history:
-                del history
+                del self.user_history[user_id]
 
     def can_send_message(self, user_id: str) -> bool:
-        current_time = time.time()
-        self._cleanup_window(user_id, current_time)
-        if user_id not in self.user_history:
-            return True
-        return len(self.user_history.get(user_id, [])) < self.max_requests
+        self._cleanup_window(user_id, time.monotonic())
+        history = self.user_history.get(user_id)
+        return history is None or len(history) < self.max_requests
 
     def record_message(self, user_id: str) -> bool:
         if self.can_send_message(user_id):
-            current_time = time.time()
             if user_id not in self.user_history:
                 self.user_history[user_id] = deque()
-            self.user_history[user_id].append(current_time)
+            self.user_history[user_id].append(time.monotonic())
             return True
         return False
 
     def time_until_next_allowed(self, user_id: str) -> float:
-        current_time = time.time()
+        current_time = time.monotonic()
         self._cleanup_window(user_id, current_time)
-        if user_id not in self.user_history or len(self.user_history[user_id]) < self.max_requests:
+        history = self.user_history.get(user_id)
+        if not history or len(history) < self.max_requests:
             return 0.0
-        next_allowed_time = self.user_history[user_id][0] + self.window_size
-        return max(0.0, next_allowed_time - current_time)
+        return history[0] + self.window_size - current_time
 
 
 def test_rate_limiter():
